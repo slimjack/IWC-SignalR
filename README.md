@@ -33,6 +33,10 @@ SJ.iwc.SignalR.start().done(function () {
 //sent
 ```
 
+#Dependencies
+**IWC-SignalR** depends on [**IWC**](https://github.com/slimjack/IWC)
+
+
 #API
 
 ####Connection starting
