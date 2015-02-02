@@ -1,46 +1,4 @@
-﻿//Methods:
-//    start() - returns deferred result.
-//      because they are executed whether it's a real connection or IWC connection
-//    getHubProxy(proxyName, proxyConfig) - returns wrapped hub proxy
-//      proxyConfig: {
-//          client: {
-//              handler1: function() {...},
-//              handler2: function() {...},
-//              ...
-//          }
-//      }
-//      client - configuration of client methods. The same as for real hub proxy
-//    getState() - returns current connection state. See $.connection.connectionState for available values
-//Events:
-//    statechanged(newState, prevState) - See $.connection.connectionState for available state values
-//    connected - fired when state is changed to $.connection.connectionState.connected
-//    starting, received, connectionslow, reconnecting, reconnected, disconnected - are the same events as for real SignalR connection
-//
-//Example:
-//Let's have a hub 'Echo' with method 'Send' defined on server. Method 'Send' calls method 'displayMsg' for all clients
-//
-//var echoHub = SJ.iwc.SignalR.getHubProxy('echo', {
-//    client: {
-//        displayMsg: function (msg) {
-//          console.log(msg);
-//        }
-//    }
-//});
-//SJ.iwc.SignalR.on('connected', function () {
-//    console.log('joined');
-//    echoHub.server.join();
-//});
-//SJ.iwc.SignalR.start().done(function () {
-//    console.log('started');
-//    echoHub.server.send('test').done(function () {
-//        console.log('sent');
-//    });
-//});
-//Result in console:
-//joined
-//started
-//test
-//sent
+﻿//https://github.com/slimjack/IWC-SignalR
 (function (scope) {
     var registeredProxies = {};
     var isConnectionOwner = false;
@@ -94,9 +52,9 @@
     //region Hub starting
     function start() {
         init();
-
+        var startArgs = Array.prototype.slice.call(arguments, 0);
         if (isConnectionOwner) {
-            var result = $.connection.hub.start();
+            var result = $.connection.hub.start.apply($.connection.hub, startArgs);
             subscribeDeferredHubStartResult(result);
             return result;
         } else {
@@ -112,7 +70,7 @@
                         subscribeOnServerRequests();
                         configureRealHubProxies();
                         subscribeConnectionEvents();
-                        onHubDeferredStart($.connection.hub.start());
+                        onHubDeferredStart($.connection.hub.start.apply($.connection.hub, startArgs));
                     });
                 }
                 forwardDefferedEvents(result, deferredStartResult.promise());
