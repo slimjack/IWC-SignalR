@@ -91,3 +91,14 @@ Use `SJ.iwc.SignalR.on()` and `SJ.iwc.SignalR.un()` to subscribe/unsubscribe on 
 - `connected` - fired when state is changed to `$.connection.connectionState.connected`
 - `starting`, `received`, `connectionslow`, `reconnecting`, `reconnected`, `disconnected` - are the same events as for original SignalR connection
 
+######Example:
+```js
+var someObject = {
+    onStateChanged: function (newState, prevState) {
+    }
+};
+//subscribe
+SJ.iwc.SignalR.on('statechanged', someObject.onStateChanged, someObject);
+//unsubscribe
+SJ.iwc.SignalR.un('statechanged', someObject.onStateChanged, someObject);
+```
