@@ -11,6 +11,8 @@ If connection owner is closed or crashed another window becomes a connection own
 Inter-window communication is done by means of [IWC](https://github.com/slimjack/IWC).
 
 #Usage
+To use **IWC-SignalR** include *signalr-patch.js* and *iwc-signalr.js* files on your page. *signalr-patch.js* allows to start SignalR multiple times. This allows to reconfigure hub proxies at any time.
+
 Let's have a hub `Echo` with method `Send` defined on server. Method `Send` calls method `displayMsg` of all clients.
 
 ```js

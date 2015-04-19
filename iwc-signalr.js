@@ -7,6 +7,7 @@
     var deferredStartResult = $.Deferred();
     var serverInvocationDeferredResults = {};
     var lsPrefix = SJ.iwc.getLocalStoragePrefix() + '_SIGNALR_';
+    var proxyClientsConfig = new SJ.iwc.SharedData(lsPrefix + 'CLIENTS');
     //region Utility functions
     function forwardDefferedEvents(targetDeferred, srcPromise) {
         srcPromise.done(function () {
@@ -20,7 +21,6 @@
         });
     };
     //endregion
-
     //region Init
     function init() {
         if (isInitialized) {
@@ -33,7 +33,6 @@
                 $.connection.hub.stop();
             }
         });
-
         SJ.iwc.EventBus.on('signalrclientinvoke', onClientInvoke, null, true);
         SJ.iwc.EventBus.on('signalrserverresponse', onServerResponse, null, true);
 
@@ -55,7 +54,7 @@
         var startArgs = Array.prototype.slice.call(arguments, 0);
         if (isConnectionOwner) {
             var result = $.connection.hub.start.apply($.connection.hub, startArgs);
-            subscribeDeferredHubStartResult(result);
+            onHubDeferredStart(result);
             return result;
         } else {
             var result = $.Deferred();
@@ -66,7 +65,20 @@
                     isSynchronized = true;
                     SJ.lock('IWC_SIGNALR', function () {
                         isConnectionOwner = true;
-                        console.log('Connection owned');
+                        proxyClientsConfig.onChanged(function (data) {
+                            if (!data) {
+                                return;
+                            }
+                            if (applyProxyClientsConfig(data)) {
+                                onHubDeferredStart($.connection.hub.start.apply($.connection.hub, startArgs));
+                            }
+                        });
+                        var clientsConfig = proxyClientsConfig.get();
+                        if (clientsConfig) {
+                            clientsConfig = removeObsoleteClientsConfigs(clientsConfig);
+                            applyProxyClientsConfig(clientsConfig);
+                            proxyClientsConfig.change(removeObsoleteClientsConfigs);
+                        }
                         subscribeOnServerRequests();
                         configureRealHubProxies();
                         subscribeConnectionEvents();
@@ -154,15 +166,15 @@
     };
 
     function onHubConnectionStarted(success, errorMsg) {
-        SJ.lock('IWC_SIGNALR_STARTEDRESULT', function () {
-            var startedResult = {
-                success: success,
-                errorMsg: errorMsg,
-                windowId: SJ.iwc.WindowMonitor.getThisWindowId()
-            };
-            SJ.localStorage.setItem(lsPrefix + 'STARTEDRESULT', JSON.stringify(startedResult));
-            SJ.iwc.EventBus.fire('signalrconnectionstarted', success, errorMsg);
-        });
+        if (!isConnectionOwner)
+            throw "Invalid operation - onHubConnectionStarted is allowed only for connection owner";
+        var startedResult = {
+            success: success,
+            errorMsg: errorMsg,
+            windowId: SJ.iwc.WindowMonitor.getThisWindowId()
+        };
+        SJ.localStorage.setItem(lsPrefix + 'STARTEDRESULT', JSON.stringify(startedResult));
+        SJ.iwc.EventBus.fire('signalrconnectionstarted', success, errorMsg);
     };
 
     function configureRealHubProxies() {
@@ -180,34 +192,123 @@
 
     //region Hub proxy
     function getHubProxy(proxyName, proxyConfig) {
+        var hubProxy;
         if (registeredProxies[proxyName]) {
-            return registeredProxies[proxyName];
+            var client = registeredProxies[proxyName].client;
+            for (var propName in client) {
+                if (SJ.isFunction(proxyConfig.client[propName]) && client[propName] === SJ.emptyFn) {
+                    client[propName] = proxyConfig.client[propName];
+                }
+            }
+            for (var propName in proxyConfig.client) {
+                if (SJ.isFunction(proxyConfig.client[propName]) && !client[propName]) {
+                    client[propName] = proxyConfig.client[propName];
+                }
+            }
+            hubProxy = registeredProxies[proxyName];
+        } else {
+            hubProxy = {
+                name: proxyName,
+                client: proxyConfig.client,
+                server: getProxyServer(proxyName)
+            };
+            registeredProxies[proxyName] = hubProxy;
         }
-        var hubProxy = {
-            name: proxyName,
-            client: proxyConfig.client,
-            server: getProxyServer(proxyName)
-        };
-        registeredProxies[proxyName] = hubProxy;
+        proxyClientsConfig.change(function (data) {
+            data = data || {};
+            data[proxyName] = data[proxyName] || { windows: [], methods: [] };
+
+            var windows = data[proxyName].windows;
+            var thisWindowId = SJ.iwc.WindowMonitor.getThisWindowId();
+            if (windows.indexOf(thisWindowId) === -1) {
+                windows.push(thisWindowId);
+            }
+
+            var methods = data[proxyName].methods;
+            for (var propName in proxyConfig.client) {
+                if (proxyConfig.client.hasOwnProperty(propName) && SJ.isFunction(proxyConfig.client[propName])) {
+                    if (methods.indexOf(propName) === -1) {
+                        methods.push(propName);
+                    }
+                }
+            }
+            return data;
+        });
         return hubProxy;
+    };
+
+    function applyProxyClientsConfig(data) {
+        var isConfigChanged = false;
+        for (var proxyName in data) {
+            if (data.hasOwnProperty(proxyName)) {
+                var proxy = registeredProxies[proxyName];
+                if (!proxy) {
+                    proxy = {
+                        name: proxyName,
+                        client: {},
+                        server: getProxyServer(proxyName)
+                    };
+                    registeredProxies[proxyName] = proxy;
+                }
+                data[proxyName].methods.forEach(function (methodName) {
+                    if (!proxy.client[methodName]) {
+                        isConfigChanged = true;
+                        proxy.client[methodName] = SJ.emptyFn;
+                    } else if (!proxy.client._applied || !proxy.client._applied[methodName]) {
+                        isConfigChanged = true;
+                    }
+                });
+            }
+        }
+        if (isConfigChanged) {
+            configureRealHubProxies();
+        }
+        return isConfigChanged;
+    };
+
+    function removeObsoleteClientsConfigs(clientsConfig) {
+        for (var proxyName in clientsConfig) {
+            if (clientsConfig.hasOwnProperty(proxyName)) {
+                var isConfigChanged = false;
+                var filteredWindows = [];
+                clientsConfig[proxyName].windows.forEach(function (windowId) {
+                    if (SJ.iwc.WindowMonitor.isWindowOpen(windowId)) {
+                        filteredWindows.push(windowId);
+                    } else {
+                        isConfigChanged = true;
+                    }
+                });
+                if (isConfigChanged) {
+                    if (filteredWindows.length) {
+                        clientsConfig[proxyName].windows = filteredWindows;
+                    } else {
+                        delete clientsConfig[proxyName];
+                    }
+                }
+            }
+        }
+        return clientsConfig;
     };
 
     function configureRealProxyClient(proxy) {
         var realProxy = $.connection[proxy.name];
         for (var propName in proxy.client) {
-            if (proxy.client.hasOwnProperty(propName) && SJ.isFunction(proxy.client[propName])) {
+            if (proxy.client.hasOwnProperty(propName) && SJ.isFunction(proxy.client[propName]) && !realProxy.client[propName]) {
                 realProxy.client[propName] = function () {
                     proxy.client[propName].apply(this, arguments);
                     var methodName = propName;
                     var eventArgs = ['signalrclientinvoke', proxy.name, methodName].concat(Array.prototype.slice.call(arguments, 0));
                     SJ.iwc.EventBus.fire.apply(SJ.iwc.EventBus, eventArgs);
                 };
+                proxy.client[propName];
+                proxy.client._applied = proxy.client._applied || {};
+                proxy.client._applied[propName] = true;
             }
         }
     };
 
     function onClientInvoke(proxyName, methodname) {
-        if (!isConnectionOwner && registeredProxies[proxyName]) {
+        if (!isConnectionOwner && registeredProxies[proxyName] && registeredProxies[proxyName].client[methodname]) {
             var args = Array.prototype.slice.call(arguments, 2);
             registeredProxies[proxyName].client[methodname].apply(registeredProxies[proxyName], args);
         }
@@ -310,13 +411,13 @@
     };
 
     function updateState(state) {
-        SJ.lock('IWC_SIGNALR_STATE', function () {
-            var stateData = {
-                state: state,
-                windowId: SJ.iwc.WindowMonitor.getThisWindowId()
-            };
-            SJ.localStorage.setItem(lsPrefix + 'STATE', JSON.stringify(stateData));
-        });
+        if (!isConnectionOwner)
+            throw "Invalid operation - updateState is allowed only for connection owner";
+        var stateData = {
+            state: state,
+            windowId: SJ.iwc.WindowMonitor.getThisWindowId()
+        };
+        SJ.localStorage.setItem(lsPrefix + 'STATE', JSON.stringify(stateData));
     };
 
     function getState() {
