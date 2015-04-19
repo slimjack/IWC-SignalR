@@ -294,18 +294,20 @@
         var realProxy = $.connection[proxy.name];
         for (var propName in proxy.client) {
             if (proxy.client.hasOwnProperty(propName) && SJ.isFunction(proxy.client[propName]) && !realProxy.client[propName]) {
-                realProxy.client[propName] = function () {
-                    proxy.client[propName].apply(this, arguments);
-                    var methodName = propName;
-                    var eventArgs = ['signalrclientinvoke', proxy.name, methodName].concat(Array.prototype.slice.call(arguments, 0));
-                    SJ.iwc.EventBus.fire.apply(SJ.iwc.EventBus, eventArgs);
-                };
-                proxy.client[propName];
+                configureRealProxyClientMethod(proxy, realProxy, propName);
                 proxy.client._applied = proxy.client._applied || {};
                 proxy.client._applied[propName] = true;
             }
         }
     };
+
+    function configureRealProxyClientMethod(proxy, realProxy, methodName) {
+        realProxy.client[methodName] = function () {
+            proxy.client[methodName].apply(this, arguments);
+            var eventArgs = ['signalrclientinvoke', proxy.name, methodName].concat(Array.prototype.slice.call(arguments, 0));
+            SJ.iwc.EventBus.fire.apply(SJ.iwc.EventBus, eventArgs);
+        };
+    }
 
     function onClientInvoke(proxyName, methodname) {
         if (!isConnectionOwner && registeredProxies[proxyName] && registeredProxies[proxyName].client[methodname]) {
