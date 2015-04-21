@@ -12,7 +12,7 @@
     //region Applying of the patch to SignalR
     $.connection.hub.start = start;
     $.connection.hub.connected = function (callback) {
-        vars.observable.On('connected', callback, $.connection.hub);
+        vars.observable.on('connected', callback, $.connection.hub);
     };
     //endregion
 
