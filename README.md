@@ -4,6 +4,7 @@
 Browsers have a limitation of the maximum number of connections to the same host address (same application).
 So, this limits the maximum number of opened browser windows of the same application with SignalR connections.
 **IWC-SignalR** allows to bypass this restriction using single SignalR connection for all windows of the same application.
+**IWC-SignalR** was tested with SignalR v2.2.0.
 
 #How it works
 One of the windows becomes a connection owner (choosen randomly) and holds the real SignalR connection.
