@@ -14,6 +14,8 @@ Inter-window communication is done by means of [IWC](https://github.com/slimjack
 #Usage
 To use **IWC-SignalR** include *signalr-patch.js* and *iwc-signalr.js* files on your page. *signalr-patch.js* allows to start SignalR multiple times. This allows to reconfigure hub proxies at any time.
 
+**IWC-SignalR** works with auto generated proxies. So, you should also include a reference `<script src="signalr/hubs"></script>` before *signalr-patch.js* and *iwc-signalr.js*.
+
 Let's have a hub `Echo` with method `Send` defined on server. Method `Send` calls method `displayMsg` of all clients.
 
 ```js
