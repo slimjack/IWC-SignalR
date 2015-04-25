@@ -427,7 +427,7 @@
         var serializedData = SJ.localStorage.getItem(lsPrefix + 'STATE');
         if (serializedData) {
             var stateData = JSON.parse(serializedData);
-            if (!SJ.iwc.WindowMonitor.isWindowOpen(stateData.windowId)) {
+            if (SJ.iwc.WindowMonitor.isWindowOpen(stateData.windowId)) {
                 state = stateData.state;
             }
         }
