@@ -434,11 +434,29 @@
 
         return state;
     };
+
+    function getConnectionOwnerWindowId() {
+        var result = null;
+        var serializedData = SJ.localStorage.getItem(lsPrefix + 'STATE');
+        if (serializedData) {
+            var stateData = JSON.parse(serializedData);
+            if (SJ.iwc.WindowMonitor.isWindowOpen(stateData.windowId)) {
+                result = stateData.windowId;
+            }
+        }
+
+        return result;
+    };
+
     //endregion
     var IWCSignalR = {
         getHubProxy: getHubProxy,
         start: start,
-        getState: getState
+        getState: getState,
+        isConnectionOwner: function() {
+             return isConnectionOwner;
+        },
+        getConnectionOwnerWindowId: getConnectionOwnerWindowId
     };
     var observable = SJ.utils.Observable.decorate(IWCSignalR, true);
     SJ.copy(scope, IWCSignalR);
