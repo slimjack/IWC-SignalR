@@ -86,8 +86,6 @@ echoHub.server.send('test');
 ######Return value:
 Returns true if this window is the owner of SignalR connection
 
-######Description:
-Returns the state of real SignalR connection
 
 ####Who is conection owner
 `{string}SJ.iwc.SignalR.getConnectionOwnerWindowId()`
