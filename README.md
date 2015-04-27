@@ -55,11 +55,11 @@ This function has the same signature as the original `$.connection.hub.start` fu
 If connection owner not found, real SignalR connection is established and this window becomes a connection owner.
 
 ####Obtaining hub proxy
-`SJ.iwc.SignalR.getHubProxy({string}hubName, {object}hubClientConfig)`
+`{object}SJ.iwc.SignalR.getHubProxy({string}hubName, {object}proxyConfig)`
 
 ######Parameters:
 - `hubName` - hub name according to SignalR naming convention (starts from lower case letter)
-- `hubClientConfig` - object which contains definition of client's methods
+- `proxyConfig` - object which contains definition of client's methods
 
 ######Return value:
 Returns hub proxy object with server and client
@@ -79,6 +79,25 @@ var echoHub = SJ.iwc.SignalR.getHubProxy('echo', {
 
 echoHub.server.send('test');
 ```
+
+####Check if conection owner
+`{bool}SJ.iwc.SignalR.isConnectionOwner()`
+
+######Return value:
+Returns true if this window is the owner of SignalR connection
+
+######Description:
+Returns the state of real SignalR connection
+
+####Who is conection owner
+`{string}SJ.iwc.SignalR.getConnectionOwnerWindowId()`
+
+######Return value:
+Returns the ID of connection owner window. Returns null if connection owner not found.
+
+######Description:
+This method works properly only if ``SJ.iwc.WindowMonitor`` is initialized.
+
 
 ####Current state
 `SJ.iwc.SignalR.getState()`
