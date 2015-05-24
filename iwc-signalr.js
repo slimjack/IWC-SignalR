@@ -8,6 +8,10 @@
     var serverInvocationDeferredResults = {};
     var lsPrefix = SJ.iwc.getLocalStoragePrefix() + '_SIGNALR_';
     var proxyClientsConfig = new SJ.iwc.SharedData(lsPrefix + 'CLIENTS');
+
+    var iwcSignalRVersion = '0.1';
+    SJ.localStorage.setVersion(lsPrefix, iwcSignalRVersion);
+
     //region Utility functions
     function forwardDefferedEvents(targetDeferred, srcPromise) {
         srcPromise.done(function () {
@@ -417,22 +421,43 @@
             throw "Invalid operation - updateState is allowed only for connection owner";
         var stateData = {
             state: state,
+            connectionId: $.connection.hub.id,
             windowId: SJ.iwc.WindowMonitor.getThisWindowId()
         };
         SJ.localStorage.setItem(lsPrefix + 'STATE', JSON.stringify(stateData));
     };
 
-    function getState() {
-        var state = $.connection.connectionState.disconnected;
+    function getStateData() {
+        var result = null;
         var serializedData = SJ.localStorage.getItem(lsPrefix + 'STATE');
         if (serializedData) {
             var stateData = JSON.parse(serializedData);
             if (SJ.iwc.WindowMonitor.isWindowOpen(stateData.windowId)) {
-                state = stateData.state;
+                result = stateData;
             }
         }
 
+        return result;
+    };
+
+    function getState() {
+        var state = $.connection.connectionState.disconnected;
+        var stateData = getStateData();
+        if (stateData) {
+            state = stateData.state;
+        }
+
         return state;
+    };
+
+    function getConnectionId() {
+        var result = null;
+        var stateData = getStateData();
+        if (stateData) {
+            result = stateData.connectionId;
+        }
+
+        return result;
     };
 
     function getConnectionOwnerWindowId() {
@@ -453,6 +478,7 @@
         getHubProxy: getHubProxy,
         start: start,
         getState: getState,
+        getConnectionId: getConnectionId,
         isConnectionOwner: function() {
              return isConnectionOwner;
         },
