@@ -106,6 +106,16 @@ Returns connection state (see SignalR's `$.connection.connectionState` for avail
 ######Description:
 Returns the state of real SignalR connection
 
+
+####Connection Id
+`SJ.iwc.SignalR.getConnectionId()`
+
+######Return value:
+Returns connection id (see SignalR's `$.connection.hub.id`)
+
+######Description:
+Returns the connection id of real SignalR connection
+
 ####Events
 Use `SJ.iwc.SignalR.on()` and `SJ.iwc.SignalR.un()` to subscribe/unsubscribe on events
 
